@@ -9,7 +9,7 @@ import SwiftUI
 
 struct MyHStack: Layout {
     var alignment: VerticalAlignment = .center
-    var spacing: CGFloat = .zero
+    var spacing: CGFloat = 10
     
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let viewFrames = frames(for: subviews, in: proposal)
@@ -24,6 +24,7 @@ struct MyHStack: Layout {
         for index in subviews.indices {
             let frame = viewFrames[index]
             
+            // Adjust Y-position for `alignment`.
             let y = switch alignment {
                 case .bottom:
                     bounds.midY + bounds.height/2 - frame.height/2
@@ -47,20 +48,23 @@ private extension MyHStack {
         case fixed
     }
     
-    // Everyview can have their ideal width.
-    func getWidthForFlexParentView(with subviews: Subviews, in proposedViewSize: ProposedViewSize) -> [CGFloat] {
+    // Each Child View can have their ideal width.
+    func getSizeForFlexWidthParentView(with subviews: Subviews, in proposedViewSize: ProposedViewSize) -> [CGSize] {
+        print("### \(#function)")
         return subviews.map {
-            $0.sizeThatFits(.unspecified).width
+            $0.sizeThatFits(proposedViewSize)
         }
     }
     
     // There is limitation of width.
-    func getWidthForFixedParentView(with subviews: Subviews, in proposedViewSize: ProposedViewSize) -> [CGFloat] {
+    func getSizeForFixedWidthParentView(with subviews: Subviews, in proposedViewSize: ProposedViewSize) -> [CGSize] {
         assert(proposedViewSize.width != nil)
+        print("### \(#function)")
         
         // Check there is enough width other than `spacing`.
         let totalSpacing = spacing * Double(subviews.count - 1)
         let availableWidthWithoutSpace: CGFloat = proposedViewSize.width! - totalSpacing
+        print("# availableWidthWithoutSpace: \(availableWidthWithoutSpace)")
         
         /// Not enough space for display any view.
         if availableWidthWithoutSpace <= 0 {
@@ -75,16 +79,29 @@ private extension MyHStack {
                 .fixed
             }
         }
-        
+        let hViewTypes: [WidthType] = subviews.map {
+            if $0.sizeThatFits(.infinity).height == .infinity {
+                .flex
+            } else {
+                .fixed
+            }
+        }
+        let priorities = subviews.map { $0.priority }
+        print("# viewTypes: \(viewTypes)")
+        print("# hViewTypes: \(hViewTypes)")
+        print("# priorities: \(priorities)")
+
         let totalWidthForFixedViews: CGFloat = zip(viewTypes, subviews).filter { type, subView in
             type == .fixed
         }.map {
             $1
         }.reduce(0.0) {
-            $0 + $1.sizeThatFits(.unspecified).width
+            $0 + $1.sizeThatFits(.infinity).width
         }
+        print("# totalWidthForFixedViews: \(totalWidthForFixedViews)")
         
         let remainingWidthForFlexViews = availableWidthWithoutSpace - totalWidthForFixedViews
+        print("# remainingWidthForFlexViews: \(remainingWidthForFlexViews)")
         
         /* Not enough space for fixed-size views.
          + .fixed: compromise width
@@ -94,22 +111,30 @@ private extension MyHStack {
             let fixedViews = viewTypes.filter { $0 == .fixed }.count
             let compromisedWidthForFixedView = availableWidthWithoutSpace / CGFloat(fixedViews)
             return zip(viewTypes, subviews).map { type, subview in
+                // Behavior Difference
                 if type == .fixed {
                     let newProposedSize = ProposedViewSize(width: compromisedWidthForFixedView, height: proposedViewSize.height)
-                    return subview.sizeThatFits(newProposedSize).width
+                    return subview.sizeThatFits(newProposedSize)
                 } else {
-                    return CGFloat.zero
+                    return CGSize.zero
                 }
             }
         }
         
         let dynamicViews = viewTypes.filter { $0 == .flex }.count
-        let dynamicWidth: CGFloat = remainingWidthForFlexViews / CGFloat(dynamicViews)
+        let dynamicWidth: CGFloat = if dynamicViews > 0 {
+            remainingWidthForFlexViews / CGFloat(dynamicViews)
+        } else {
+            .zero
+        }
+        print("# dynamicWidth: \(dynamicWidth)")
         return zip(viewTypes, subviews).map { type, subview in
             if type == .fixed {
-                return subview.sizeThatFits(proposedViewSize).width
+                print("# proposedViewSize \(proposedViewSize)")
+                return subview.sizeThatFits(proposedViewSize)
             } else {
-                return dynamicWidth
+                let proposedSize = ProposedViewSize(width: dynamicWidth, height: proposedViewSize.height)
+                return subview.sizeThatFits(proposedSize)
             }
         }
     }
@@ -117,23 +142,18 @@ private extension MyHStack {
     func frames(for subviews: Subviews, in proposedViewSize: ProposedViewSize) -> [CGRect] {
         let parentViewWidthType: WidthType = proposedViewSize.width == nil ? .flex : .fixed
         
-        let heights: [CGFloat] = {
-            let filledProposal: ProposedViewSize = ProposedViewSize(proposedViewSize.replacingUnspecifiedDimensions())
-            return subviews.map { $0.sizeThatFits(filledProposal).height}
-        }()
-        
-        let widths = if parentViewWidthType == .flex {
-            getWidthForFlexParentView(with: subviews, in: proposedViewSize)
+        let sizes = if parentViewWidthType == .flex {
+            getSizeForFlexWidthParentView(with: subviews, in: proposedViewSize)
         } else {
-            getWidthForFixedParentView(with: subviews, in: proposedViewSize)
+            getSizeForFixedWidthParentView(with: subviews, in: proposedViewSize)
         }
+        print("# widths: \(sizes.map { $0.width })")
+        print("# heights: \(sizes.map { $0.height })")
         
         var x: CGFloat = .zero
         let totalSpacing = spacing * CGFloat(subviews.count - 1)
-        let totalWidth: CGFloat = widths.reduce(0.0) { $0 + $1 } + totalSpacing
-        return zip(heights, widths).map { h, w in
-            CGSize(width: w, height: h)
-        }.reduce(into: []) { list, size in
+        let totalWidth: CGFloat = sizes.map { $0.width }.reduce(0.0) { $0 + $1 } + totalSpacing
+        return sizes.reduce(into: []) { list, size in
             let origin = CGPoint(x: -totalWidth/2 + x, y: .zero)
             let frame =  CGRect(origin: origin, size: size)
             x += size.width + spacing
@@ -142,257 +162,90 @@ private extension MyHStack {
     }
 }
 
-#Preview("ParentFrame has less tall size") {
-    VStack(spacing: 150) {
-        ScrollView {
-            HStack(spacing: 10) {
-                Text("aa")
-                Rectangle().fill(.red)
-                    .frame(width: 50, height: 200)
-            }
-            ScrollView {
-                MyHStack(spacing: 10) {
-                    Text("aa")
-                    Rectangle().fill(.yellow)
-                        .frame(width: 50, height: 200)
-                }
-            }
-        }
-    }
-}
-
-#Preview("ParentFrame has less tall size") {
-    VStack(spacing: 150) {
-        HStack(spacing: 10) {
-            Text("aa")
-            Rectangle().fill(.red)
-                .frame(width: 50, height: 200)
-        }.frame(width: 100, height: 100)
-        MyHStack(spacing: 10) {
-            Text("aa")
-            Rectangle().fill(.yellow)
-                .frame(width: 50, height: 200)
-        }.frame(height: 100)
-    }
-}
-
-#Preview("ParentFrame has less tall size") {
-    VStack(spacing: 150) {
-        HStack(spacing: 10) {
-            Text("aa")
-            Rectangle().fill(.red)
-                .frame(width: 50, height: 200)
-        }.frame(width: 100, height: 100)
-        MyHStack(spacing: 10) {
-            Text("aa")
-            Rectangle().fill(.yellow)
-                .frame(width: 50, height: 200)
-        }.frame(width: 100, height: 100)
-    }
-}
-
-#Preview("ParentFrame has wider/taller size") {
-    VStack(spacing: 10) {
-        HStack(spacing: 10) {
-            Text("aa")
-            Rectangle().fill(.red)
-                .frame(width: 50, height: 50)
-        }.frame(width: 100, height: 200)
-        MyHStack(spacing: 10) {
-            Text("aa")
-            Rectangle().fill(.yellow)
-                .frame(width: 50, height: 50)
-        }.frame(width: 100, height: 200)
-    }
-}
-
-#Preview("ParentFrame not enough width") {
-    VStack(spacing: 10) {
-        HStack(spacing: 10) {
-            Text("aaaaaa")
-            Text("bbbbbbbbbbbbb")
-        }.frame(width: 20)
-            .foregroundColor(.red)
-        MyHStack(spacing: 10) {
-            Text("aaaaaa")
-            Text("bbbbbbbbbbbbb")
-        }.frame(width: 20)
-            .foregroundColor(.yellow)
-    }
-}
-
-#Preview("Text and Rectangle") {
-    VStack(spacing: 10) {
-        HStack(spacing: 10) {
-            Text("a")
-            Rectangle().fill(.red)
-            Text("a")
-            Rectangle().fill(.red)
-        }
-        MyHStack(spacing: 10) {
-            Text("a")
-            Rectangle().fill(.green)
-            Text("a")
-            Rectangle().fill(.green)
-        }
-    }
-}
-
-#Preview("Text and Rectagnle in ScrollView") {
-    VStack(spacing: 10) {
-        ScrollView(.horizontal) {
-            HStack(spacing: 10) {
-                Text("a")
-                Rectangle().fill(.red)
-                Text("a")
-                Rectangle().fill(.red)
-            }
-        }
-        
-        ScrollView(.horizontal) {
-            MyHStack(spacing: 10) {
-                Text("a")
-                Rectangle().fill(.green)
-                Text("a")
-                Rectangle().fill(.green)
-            }
-        }
-    }
-}
-
-#Preview("Rectangle, but parent view has not enough width") {
-    VStack(spacing: 10) {
-        HStack(spacing: 10) {
-            Rectangle().fill(.red)
-                .frame(width: 80)
-            Rectangle().fill(.blue)
-                .frame(width: 50)
+// MG Examples
+#Preview("2 text") {
+    VStack {
+        HStack {
+            Text("1234567")
+                .border(.red)
+            Text("ABCDEDG")
+            Text("1234567")
+                .border(.red)
+            Text("ABCDEDG")
+            Text("1234567")
+                .border(.red)
         }.frame(width: 100)
-        
-        MyHStack(spacing: 10) {
-            MyHStack(spacing: 10) {
-                Rectangle().fill(.red)
-                    .frame(width: 80)
-                Rectangle().fill(.blue)
-                    .frame(width: 50)
-            }.frame(width: 100)
-        }
+        MyHStack {
+            Text("1234567")
+                .border(.red)
+            Text("ABCDEDG")
+            Text("1234567")
+                .border(.red)
+            Text("ABCDEDG")
+            Text("1234567")
+                .border(.red)
+        }.frame(width: 100)
     }
 }
 
-#Preview("HStack with padding") {
-    VStack(spacing: 10) {
-        HStack(spacing: 10) {
-            Rectangle().fill(.blue)
-            Rectangle().fill(.red)
-        }.padding(.horizontal, 100)
-        
-        MyHStack(spacing: 10) {
-            Rectangle().fill(.yellow)
-            Rectangle().fill(.green)
-        }.padding(.horizontal, 100)
-    }
-}
-
-#Preview("Hstack with spacing") {
-    VStack(spacing: 10) {
-        Text("Spacing: 0")
-        HStack(spacing: 0) {
-            Rectangle().frame(width: 30).foregroundStyle(Color.red)
-            Rectangle().frame(width: 50).foregroundStyle(Color.blue)
-            Rectangle().frame(width: 30).foregroundStyle(Color.red)
-        }
-        
-        MyHStack(spacing: 0) {
-            Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-            Rectangle().frame(width: 50).foregroundStyle(Color.green)
-            Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-        }
-        
-        Text("Spacing: 20")
-        HStack(spacing: 20) {
-            Rectangle().frame(width: 30).foregroundStyle(Color.red)
-            Rectangle().frame(width: 50).foregroundStyle(Color.blue)
-            Rectangle().frame(width: 30).foregroundStyle(Color.red)
-        }
-        
-        MyHStack(spacing: 20) {
-            Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-            Rectangle().frame(width: 50).foregroundStyle(Color.green)
-            Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-        }
-    }
-}
-
-#Preview("Hstack with alignment") {
+#Preview("2 text with Spacer") {
     VStack {
-        Text("Top")
-        HStack(alignment: .top, spacing: 0) {
-            Rectangle().frame(width: 30, height: 10).foregroundStyle(Color.red)
-            Rectangle().frame(width: 50, height: 50).foregroundStyle(Color.blue)
-            Rectangle().frame(width: 30, height: 30).foregroundStyle(Color.red)
+        HStack {
+            Text("1234567")
+                .border(.red)
+            Spacer()
+            Text("ABCDEDG")
         }
-        
-        MyHStack(alignment: .top, spacing: 0) {
-            Rectangle().frame(width: 30, height: 10).foregroundStyle(Color.yellow)
-            Rectangle().frame(width: 50, height: 50).foregroundStyle(Color.green)
-            Rectangle().frame(width: 30, height: 30).foregroundStyle(Color.yellow)
-        }
-        
-        Text("Center")
-        HStack(alignment: .center, spacing: 0) {
-            Rectangle().frame(width: 30, height: 10).foregroundStyle(Color.red)
-            Rectangle().frame(width: 50, height: 50).foregroundStyle(Color.blue)
-            Rectangle().frame(width: 30, height: 30).foregroundStyle(Color.red)
-        }
-        
-        MyHStack(alignment: .center, spacing: 0) {
-            Rectangle().frame(width: 30, height: 10).foregroundStyle(Color.yellow)
-            Rectangle().frame(width: 50, height: 50).foregroundStyle(Color.green)
-            Rectangle().frame(width: 30, height: 30).foregroundStyle(Color.yellow)
-        }
-        
-        Text("Bottom")
-        HStack(alignment: .bottom, spacing: 0) {
-            Rectangle().frame(width: 30, height: 10).foregroundStyle(Color.red)
-            Rectangle().frame(width: 50, height: 50).foregroundStyle(Color.blue)
-            Rectangle().frame(width: 30, height: 30).foregroundStyle(Color.red)
-        }
-        
-        MyHStack(alignment: .bottom, spacing: 0) {
-            Rectangle().frame(width: 30, height: 10).foregroundStyle(Color.yellow)
-            Rectangle().frame(width: 50, height: 50).foregroundStyle(Color.green)
-            Rectangle().frame(width: 30, height: 30).foregroundStyle(Color.yellow)
+        MyHStack {
+            Text("1234567")
+                .border(.red)
+            Spacer()
+            Text("ABCDEDG")
         }
     }
 }
 
-#Preview("Hstack with ScrollView") {
+#Preview("2 text with Spacer and LayoutPriority") {
     VStack {
-        ScrollView(.horizontal) {
-            HStack(spacing: 0) {
-                Rectangle().frame(width: 30).foregroundStyle(Color.red)
-                Rectangle().frame(width: 50).foregroundStyle(Color.blue)
-                Rectangle().frame(width: 30).foregroundStyle(Color.red)
-                Rectangle().frame(width: 50).foregroundStyle(Color.blue)
-                Rectangle().frame(width: 30).foregroundStyle(Color.red)
-                Rectangle().frame(width: 50).foregroundStyle(Color.blue)
-                Rectangle().frame(width: 30).foregroundStyle(Color.red)
-                Rectangle().frame(width: 50).foregroundStyle(Color.blue)
-            }
-        }
-        
-        ScrollView(.horizontal) {
-            MyHStack(spacing: 0) {
-                Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-                Rectangle().frame(width: 50).foregroundStyle(Color.green)
-                Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-                Rectangle().frame(width: 50).foregroundStyle(Color.green)
-                Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-                Rectangle().frame(width: 50).foregroundStyle(Color.green)
-                Rectangle().frame(width: 30).foregroundStyle(Color.yellow)
-                Rectangle().frame(width: 50).foregroundStyle(Color.green)
-            }
-        }
+        HStack {
+            Text("1234567")
+                .lineLimit(1)
+                .layoutPriority(1)
+                .border(.red)
+            Spacer()
+            Text("ABCDEDG")
+                .lineLimit(1)
+        }.frame(width: 150)
+        MyHStack {
+            Text("1234567")
+                .lineLimit(1)
+                .layoutPriority(1)
+                .border(.red)
+            Spacer()
+            Text("ABCDEDG")
+                .lineLimit(1)
+        }.frame(width: 150)
     }
 }
+
+#Preview("with min width") {
+    VStack {
+        HStack {
+            Rectangle()
+                .fill(.red)
+                .frame(minWidth: 100)
+            Rectangle()
+                .fill(.blue)
+                .frame(minWidth: 100, maxWidth: 250)
+        }.frame(width: 400)
+        MyHStack {
+            Rectangle()
+                .fill(.green)
+                .frame(minWidth: 100)
+            Rectangle()
+                .fill(.yellow)
+                .frame(minWidth: 100, maxWidth: 250)
+        }.frame(width: 400)
+    }
+}
+

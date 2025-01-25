@@ -9,24 +9,21 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            MyHStack {
-                Image(systemName: "gear")
-                    .resizable()
-                    .frame(width: 50, height: 50)
-                Image(systemName: "pencil")
-                    .resizable()
-                    .frame(width: 50, height: 50)
-            }
-            
-            MyHStack(spacing: 0) {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
                 Rectangle().fill(.red)
-                Text("Text4")
-            }
+                    .frame(width: 80)
+                Rectangle().fill(.blue)
+                    .frame(width: 50)
+            }.frame(width: 100)
             
-            HStack(spacing: 0) {
-                Rectangle().fill(.red)
-                Text("Text4")
+            MyHStack(spacing: 10) {
+                MyHStack(spacing: 10) {
+                    Rectangle().fill(.red)
+                        .frame(width: 80)
+                    Rectangle().fill(.blue)
+                        .frame(width: 50)
+                }.frame(width: 100)
             }
         }
         .padding()
