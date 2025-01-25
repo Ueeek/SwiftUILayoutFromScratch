@@ -142,6 +142,70 @@ private extension MyHStack {
     }
 }
 
+#Preview("ParentFrame has less tall size") {
+    VStack(spacing: 150) {
+        ScrollView {
+            HStack(spacing: 10) {
+                Text("aa")
+                Rectangle().fill(.red)
+                    .frame(width: 50, height: 200)
+            }
+            ScrollView {
+                MyHStack(spacing: 10) {
+                    Text("aa")
+                    Rectangle().fill(.yellow)
+                        .frame(width: 50, height: 200)
+                }
+            }
+        }
+    }
+}
+
+#Preview("ParentFrame has less tall size") {
+    VStack(spacing: 150) {
+        HStack(spacing: 10) {
+            Text("aa")
+            Rectangle().fill(.red)
+                .frame(width: 50, height: 200)
+        }.frame(width: 100, height: 100)
+        MyHStack(spacing: 10) {
+            Text("aa")
+            Rectangle().fill(.yellow)
+                .frame(width: 50, height: 200)
+        }.frame(height: 100)
+    }
+}
+
+#Preview("ParentFrame has less tall size") {
+    VStack(spacing: 150) {
+        HStack(spacing: 10) {
+            Text("aa")
+            Rectangle().fill(.red)
+                .frame(width: 50, height: 200)
+        }.frame(width: 100, height: 100)
+        MyHStack(spacing: 10) {
+            Text("aa")
+            Rectangle().fill(.yellow)
+                .frame(width: 50, height: 200)
+        }.frame(width: 100, height: 100)
+    }
+}
+
+#Preview("ParentFrame has wider/taller size") {
+    VStack(spacing: 10) {
+        HStack(spacing: 10) {
+            Text("aa")
+            Rectangle().fill(.red)
+                .frame(width: 50, height: 50)
+        }.frame(width: 100, height: 200)
+        MyHStack(spacing: 10) {
+            Text("aa")
+            Rectangle().fill(.yellow)
+                .frame(width: 50, height: 50)
+        }.frame(width: 100, height: 200)
+    }
+}
+
 #Preview("ParentFrame not enough width") {
     VStack(spacing: 10) {
         HStack(spacing: 10) {
