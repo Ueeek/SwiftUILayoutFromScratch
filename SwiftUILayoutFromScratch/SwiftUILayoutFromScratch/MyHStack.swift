@@ -14,12 +14,14 @@ struct MyHStack: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let viewFrames = frames(for: subviews, in: proposal)
         let height = viewFrames.max { $0.height < $1.height }?.height ?? .zero
-        let width = viewFrames.reduce(0) { $0 + $1.width } + CGFloat(subviews.count - 1) * spacing
+        let width = viewFrames.reduce(0) { $0 + $1.width } + CGFloat(viewFrames.filter { $0.width > 0 }.count - 1) * spacing
+        print("# width \(width)")
         return CGSize(width: width, height: height)
     }
     
     func placeSubviews(in bounds: CGRect, proposal proposedViewSize: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let viewFrames = frames(for: subviews, in: proposedViewSize)
+        print("# viewFrames \(viewFrames)")
         
         for index in subviews.indices {
             let frame = viewFrames[index]
@@ -51,25 +53,26 @@ private extension MyHStack {
     // Each Child View can have their ideal width.
     func getSizeForFlexWidthParentView(with subviews: Subviews, in proposedViewSize: ProposedViewSize) -> [CGSize] {
         print("### \(#function)")
-        return subviews.map {
-            $0.sizeThatFits(proposedViewSize)
-        }
+        let highestPriority = subviews.map { $0.priority }.max() ?? .zero
+        let sizes = subviews
+            .enumerated()
+            .sorted { $0.element.priority > $1.element.priority }
+            .map { index, subview in
+                if subview.priority == highestPriority {
+                    (index, subview.sizeThatFits(proposedViewSize))
+                } else {
+                    (index, subview.sizeThatFits(.zero))
+                }
+            }.sorted { $0.0 < $1.0 }
+            .map { $0.1 }
+        return sizes
     }
     
     // There is limitation of width.
     func getSizeForFixedWidthParentView(with subviews: Subviews, in proposedViewSize: ProposedViewSize) -> [CGSize] {
         assert(proposedViewSize.width != nil)
         print("### \(#function)")
-        
-        // Check there is enough width other than `spacing`.
-        let totalSpacing = spacing * Double(subviews.count - 1)
-        let availableWidthWithoutSpace: CGFloat = proposedViewSize.width! - totalSpacing
-        print("# availableWidthWithoutSpace: \(availableWidthWithoutSpace)")
-        
-        /// Not enough space for display any view.
-        if availableWidthWithoutSpace <= 0 {
-            return subviews.map { _ in .zero }
-        }
+        print("# totalAvailableWidth \(proposedViewSize.width)")
         
         // Check there is enough width for fixed views.
         let viewTypes: [WidthType] = subviews.map {
@@ -86,11 +89,17 @@ private extension MyHStack {
                 .fixed
             }
         }
-        let priorities = subviews.map { $0.priority }
+        let priorities = zip(viewTypes, subviews)
+            .filter { viewType, subview in
+                viewType == .flex
+            }.map {
+                $1.priority
+            }
+        let highestPriority = priorities.max() ?? .zero
         print("# viewTypes: \(viewTypes)")
         print("# hViewTypes: \(hViewTypes)")
         print("# priorities: \(priorities)")
-
+        
         let totalWidthForFixedViews: CGFloat = zip(viewTypes, subviews).filter { type, subView in
             type == .fixed
         }.map {
@@ -98,9 +107,39 @@ private extension MyHStack {
         }.reduce(0.0) {
             $0 + $1.sizeThatFits(.infinity).width
         }
-        print("# totalWidthForFixedViews: \(totalWidthForFixedViews)")
         
-        let remainingWidthForFlexViews = availableWidthWithoutSpace - totalWidthForFixedViews
+        let totalWidthForLowPriorityFlexViews: CGFloat = zip(viewTypes, subviews).filter { type, subView in
+            type == .flex && subView.priority != highestPriority
+        }.map {
+            $1.sizeThatFits(.zero).width
+        }.reduce(0.0) {
+            $0 + $1
+        }
+        
+        let zeroWidthLowPriorityFlexView = zip(viewTypes, subviews).filter { type, subView in
+            type == .flex && subView.priority != highestPriority
+        }.map {
+            $1.sizeThatFits(.zero).width
+        }.filter {
+            $0 == .zero
+        }.count
+        let fixedViews = viewTypes.filter { $0 == .fixed }.count
+        
+        // Check there is enough width other than `spacing`.
+        let totalSpacing = spacing * Double(subviews.count - zeroWidthLowPriorityFlexView - 1)
+        print("# totalSpacing: \(totalSpacing)")
+        let availableWidthWithoutSpace: CGFloat = proposedViewSize.width! - totalSpacing
+        print("# availableWidthWithoutSpace: \(availableWidthWithoutSpace)")
+        
+        /// Not enough space for display any view.
+        if availableWidthWithoutSpace <= 0 {
+            return subviews.map { _ in .zero }
+        }
+        
+        print("# totalWidthForFixedViews: \(totalWidthForFixedViews)")
+        print("# totalWidthForLowPriorityFlexView: \(totalWidthForLowPriorityFlexViews)")
+        
+        let remainingWidthForFlexViews = availableWidthWithoutSpace - totalWidthForFixedViews - totalWidthForLowPriorityFlexViews
         print("# remainingWidthForFlexViews: \(remainingWidthForFlexViews)")
         
         /* Not enough space for fixed-size views.
@@ -121,9 +160,12 @@ private extension MyHStack {
             }
         }
         
-        let dynamicViews = viewTypes.filter { $0 == .flex }.count
-        let dynamicWidth: CGFloat = if dynamicViews > 0 {
-            remainingWidthForFlexViews / CGFloat(dynamicViews)
+        let highPriorityViewCount = zip(viewTypes, subviews)
+            .filter { type, subview in
+                type == .flex && subview.priority == highestPriority
+            }.count
+        let dynamicWidth: CGFloat = if highPriorityViewCount > 0 {
+            remainingWidthForFlexViews / CGFloat(highPriorityViewCount)
         } else {
             .zero
         }
@@ -133,8 +175,17 @@ private extension MyHStack {
                 print("# proposedViewSize \(proposedViewSize)")
                 return subview.sizeThatFits(proposedViewSize)
             } else {
-                let proposedSize = ProposedViewSize(width: dynamicWidth, height: proposedViewSize.height)
-                return subview.sizeThatFits(proposedSize)
+                if subview.priority == highestPriority {
+                    let minHeight = subview.sizeThatFits(ProposedViewSize(width: dynamicWidth, height: .zero)).height
+                    let proposedSize = if minHeight == .zero {
+                        ProposedViewSize(width: dynamicWidth, height: proposedViewSize.replacingUnspecifiedDimensions().height)
+                    } else {
+                        ProposedViewSize(width: dynamicWidth, height: .zero)
+                    }
+                    return subview.sizeThatFits(proposedSize)
+                } else {
+                    return subview.sizeThatFits(.zero)
+                }
             }
         }
     }
@@ -149,20 +200,78 @@ private extension MyHStack {
         }
         print("# widths: \(sizes.map { $0.width })")
         print("# heights: \(sizes.map { $0.height })")
+        print("# subview: \(subviews[0].containerValues)")
         
         var x: CGFloat = .zero
-        let totalSpacing = spacing * CGFloat(subviews.count - 1)
+        let totalSpacing = spacing * CGFloat(sizes.filter { $0.width > 0 }.count - 1)
         let totalWidth: CGFloat = sizes.map { $0.width }.reduce(0.0) { $0 + $1 } + totalSpacing
+        
         return sizes.reduce(into: []) { list, size in
             let origin = CGPoint(x: -totalWidth/2 + x, y: .zero)
             let frame =  CGRect(origin: origin, size: size)
-            x += size.width + spacing
+            x += size.width + (size.width == .zero ? .zero: spacing)
             list.append(frame)
         }
     }
 }
 
+
 // MG Examples
+#Preview("Spacer") {
+    VStack(spacing: 100) {
+        HStack(spacing: 10) {
+            Rectangle().fill(.red)
+            Spacer()
+            Rectangle().fill(.yellow)
+        }
+        MyHStack(spacing: 10) {
+            Rectangle().fill(.red)
+            Spacer()
+            Rectangle().fill(.yellow)
+        }
+    }
+    
+}
+
+#Preview("Spacer") {
+    VStack(spacing: 100) {
+        HStack(spacing: 40) {
+            Rectangle().fill(.red)
+                .layoutPriority(99)
+            Spacer()
+            Rectangle().fill(.yellow)
+                .layoutPriority(100)
+        }
+        MyHStack(spacing: 40) {
+            Rectangle().fill(.red)
+                .layoutPriority(99)
+            Spacer()
+            Rectangle().fill(.yellow)
+                .layoutPriority(100)
+        }
+    }
+}
+
+
+#Preview("Text and Rectangle") {
+    VStack(spacing: 10) {
+        HStack(spacing: 10) {
+            Text("a")
+            Rectangle().fill(.red)
+                .frame(minHeight: 100)
+            Text("a")
+            Rectangle().fill(.red)
+        }
+        MyHStack(spacing: 10) {
+            Text("a")
+            Rectangle().fill(.green)
+                .frame(minHeight: 100)
+            Text("a")
+            Rectangle().fill(.green)
+        }
+    }
+}
+
 #Preview("2 text") {
     VStack {
         HStack {

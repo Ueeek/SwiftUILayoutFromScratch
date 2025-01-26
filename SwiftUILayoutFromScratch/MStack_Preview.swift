@@ -331,3 +331,30 @@ import SwiftUI
     }
 }
 
+#Preview("Spacer in ScrollView") {
+    VStack(spacing: 0) {
+        ScrollView(.horizontal) {
+            HStack(spacing: 10) {
+                Rectangle().fill(.red)
+                Spacer()
+                Rectangle().fill(.yellow)
+                Spacer()
+                Rectangle().fill(.red)
+                Spacer()
+                Rectangle().fill(.yellow)
+            }
+        }
+        ScrollView(.horizontal) {
+            MyHStack(spacing: 10) {
+                Rectangle().fill(.red)
+                Spacer()
+                Rectangle().fill(.yellow)
+                Spacer()
+                Rectangle().fill(.red)
+                Spacer()
+                Rectangle().fill(.yellow)
+            }
+        }
+    }
+}
+
