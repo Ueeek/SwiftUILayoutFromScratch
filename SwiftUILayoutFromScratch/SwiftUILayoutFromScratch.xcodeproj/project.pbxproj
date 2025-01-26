@@ -7,12 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		069A7C3D2D449C8C00BCBBE9 /* MStack_Preview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 069A7C3C2D449C8C00BCBBE9 /* MStack_Preview.swift */; };
+		066F022E2D46249700BF3473 /* MStack_Fixed_ParentPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 066F022D2D46249700BF3473 /* MStack_Fixed_ParentPreview.swift */; };
+		069A7C3D2D449C8C00BCBBE9 /* MStack_Flex_ParentPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 069A7C3C2D449C8C00BCBBE9 /* MStack_Flex_ParentPreview.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0622C65D2D3FD116004D276B /* SwiftUILayoutFromScratch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftUILayoutFromScratch.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		069A7C3C2D449C8C00BCBBE9 /* MStack_Preview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MStack_Preview.swift; sourceTree = "<group>"; };
+		066F022D2D46249700BF3473 /* MStack_Fixed_ParentPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MStack_Fixed_ParentPreview.swift; sourceTree = "<group>"; };
+		069A7C3C2D449C8C00BCBBE9 /* MStack_Flex_ParentPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MStack_Flex_ParentPreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -37,7 +39,8 @@
 		0622C6542D3FD116004D276B = {
 			isa = PBXGroup;
 			children = (
-				069A7C3C2D449C8C00BCBBE9 /* MStack_Preview.swift */,
+				069A7C3C2D449C8C00BCBBE9 /* MStack_Flex_ParentPreview.swift */,
+				066F022D2D46249700BF3473 /* MStack_Fixed_ParentPreview.swift */,
 				0622C65F2D3FD116004D276B /* SwiftUILayoutFromScratch */,
 				0622C65E2D3FD116004D276B /* Products */,
 			);
@@ -125,7 +128,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				069A7C3D2D449C8C00BCBBE9 /* MStack_Preview.swift in Sources */,
+				069A7C3D2D449C8C00BCBBE9 /* MStack_Flex_ParentPreview.swift in Sources */,
+				066F022E2D46249700BF3473 /* MStack_Fixed_ParentPreview.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

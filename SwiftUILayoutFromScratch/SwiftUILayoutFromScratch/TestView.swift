@@ -19,7 +19,7 @@ struct TestLayout: Layout {
             let prio = subview.priority
             let cont = subview.containerValues
             let prop = subview.sizeThatFits(proposal)
-            print("#\(index) zero: \(zero) unspecified: \(unspeficied) inf: \(inf) prop: \(prop) filled: \(filled) sub p: \(prio) cont \(cont)")
+            print("#\(index) zero: \(zero) unspecified: \(unspeficied) inf: \(inf) prop: \(prop) filled: \(filled) p: \(prio)")
         }
         
         return .zero
@@ -29,62 +29,62 @@ struct TestLayout: Layout {
     }
 }
 
-#Preview {
-    TestLayout {
-        Text("Hello")
-        Text("Hello")
-            .frame(width: 100)
-        Text("Hello")
-            .frame(idealWidth: 100)
-        Text("Hello")
-            .frame(minWidth: 10)
-        Text("Hello")
-            .frame(maxWidth: 200)
-        Text("Hello")
-            .frame(minWidth: 10, maxWidth: 200)
-    }
-}
-#Preview ("Rect"){
-    TestLayout {
-        Rectangle()
-        Rectangle()
-            .frame(width: 100)
-        Rectangle()
-            .frame(idealWidth: 100)
-        Rectangle()
-            .frame(minWidth: 10)
-        Rectangle()
-            .frame(maxWidth: 200)
-        Rectangle()
-            .frame(minWidth: 10, maxWidth: 200)
-    }
-}
-
-#Preview("Spacer") {
-    TestLayout {
-        Spacer()
-        Spacer()
-            .frame(width: 100)
-        Spacer()
-            .frame(idealWidth: 100)
-        Spacer()
-            .frame(minWidth: 10)
-        Spacer()
-            .frame(maxWidth: 200)
-        Rectangle()
-            .frame(minWidth: 10, maxWidth: 200)
-    }
-}
-
-#Preview("Spacer and Rect") {
-    TestLayout {
-        Rectangle()
-        Spacer()
-        Rectangle()
-            .frame(minWidth: 8, idealWidth: 8, minHeight: 8, idealHeight: 8)
-    }
-}
-
+//#Preview {
+//    TestLayout {
+//        Text("Hello")
+//        Text("Hello")
+//            .frame(width: 100)
+//        Text("Hello")
+//            .frame(idealWidth: 100)
+//        Text("Hello")
+//            .frame(minWidth: 10)
+//        Text("Hello")
+//            .frame(maxWidth: 200)
+//        Text("Hello")
+//            .frame(minWidth: 10, maxWidth: 200)
+//    }
+//}
+//#Preview ("Rect"){
+//    TestLayout {
+//        Rectangle()
+//        Rectangle()
+//            .frame(width: 100)
+//        Rectangle()
+//            .frame(idealWidth: 100)
+//        Rectangle()
+//            .frame(minWidth: 10)
+//        Rectangle()
+//            .frame(maxWidth: 200)
+//        Rectangle()
+//            .frame(minWidth: 10, maxWidth: 200)
+//    }
+//}
+//
+//#Preview("Spacer") {
+//    TestLayout {
+//        Spacer()
+//        Spacer()
+//            .frame(width: 100)
+//        Spacer()
+//            .frame(idealWidth: 100)
+//        Spacer()
+//            .frame(minWidth: 10)
+//        Spacer()
+//            .frame(maxWidth: 200)
+//        Rectangle()
+//            .frame(minWidth: 10, maxWidth: 200)
+//    }
+//}
+//
+//#Preview("Spacer and Rect") {
+//    TestLayout {
+//        Rectangle()
+//        Spacer()
+//        Rectangle()
+//            .frame(minWidth: 8, idealWidth: 8, minHeight: 8, idealHeight: 8)
+//    }
+//}
+//
 //#Preview("Spacer and Rect") {
 //    VStack {
 //        Rectangle()
@@ -96,3 +96,30 @@ struct TestLayout: Layout {
 //            .frame(minWidth: 8, idealWidth: 8, minHeight: 8, idealHeight: 8)
 //    }
 //}
+//
+#Preview {
+    TestLayout {
+        Text("hoge")
+        Spacer()
+        Rectangle()
+    }
+}
+
+#Preview {
+    HStack(spacing: 10) {
+        //    TestLayout {
+        Text("hoge")
+//            .frame(minWidth: 200, maxWidth: 100)
+            .border(.red)
+        Text("hoge")
+//            .frame(minWidth: 100, maxWidth: 200)
+            .border(.red)
+        Text("hoge")
+//            .frame(minWidth: 100, maxWidth: 200)
+            .border(.red)
+    }
+    .padding(.vertical, 40)
+    .frame(maxWidth: .infinity)
+//}.frame(maxWidth: 200)
+        .border(.blue)
+}
